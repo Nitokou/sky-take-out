@@ -39,6 +39,7 @@ public class WebMvcConfiguration extends WebMvcConfigurationSupport {
 
     /**
      * 通过knife4j生成接口文档
+     * 可以用来做接口测试
      * @return
      */
     @Bean
@@ -62,7 +63,8 @@ public class WebMvcConfiguration extends WebMvcConfigurationSupport {
      * @param registry
      */
     protected void addResourceHandlers(ResourceHandlerRegistry registry) {
-        registry.addResourceHandler("/doc.html").addResourceLocations("classpath:/META-INF/resources/");
-        registry.addResourceHandler("/webjars/**").addResourceLocations("classpath:/META-INF/resources/webjars/");
+        System.out.println("放行静态资源");
+        registry.addResourceHandler("/doc.html").addResourceLocations("classpath:/META-INF/resources/");  //放行 Swagger 主页面：doc.html
+        registry.addResourceHandler("/webjars/**").addResourceLocations("classpath:/META-INF/resources/webjars/");  // 放行 Swagger 所需的 js/css 等资源：/webjars/**
     }
 }

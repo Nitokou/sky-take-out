@@ -6,6 +6,8 @@ import org.springframework.stereotype.Component;
 
 @Component
 @ConfigurationProperties(prefix = "sky.jwt")
+//这是 Spring Boot 中 配置属性绑定机制 的核心注解之一，
+// 用来把配置文件（application.yml / application.properties）里以 sky.jwt 开头的配置，自动绑定到一个 Java 类的字段上。
 @Data
 public class JwtProperties {
 
