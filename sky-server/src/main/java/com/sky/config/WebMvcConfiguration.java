@@ -1,10 +1,14 @@
 package com.sky.config;
 
 import com.sky.interceptor.JwtTokenAdminInterceptor;
+import com.sky.json.JacksonObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.converter.HttpMessageConverter;
+import org.springframework.http.converter.cbor.MappingJackson2CborHttpMessageConverter;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurationSupport;
@@ -14,6 +18,8 @@ import springfox.documentation.builders.RequestHandlerSelectors;
 import springfox.documentation.service.ApiInfo;
 import springfox.documentation.spi.DocumentationType;
 import springfox.documentation.spring.web.plugins.Docket;
+
+import java.util.List;
 
 /**
  * 配置类，注册web层相关组件
@@ -66,5 +72,23 @@ public class WebMvcConfiguration extends WebMvcConfigurationSupport {
         System.out.println("放行静态资源");
         registry.addResourceHandler("/doc.html").addResourceLocations("classpath:/META-INF/resources/");  //放行 Swagger 主页面：doc.html
         registry.addResourceHandler("/webjars/**").addResourceLocations("classpath:/META-INF/resources/webjars/");  // 放行 Swagger 所需的 js/css 等资源：/webjars/**
+    }
+
+    /**
+     *
+     * SpringBoot的消息转换类
+     *
+    */
+
+    @Override
+    protected void extendMessageConverters(List<HttpMessageConverter<?>> converters) {
+        log.info("扩展消息转换器");
+//        创建一个消息转换器类
+        MappingJackson2HttpMessageConverter converter = new MappingJackson2HttpMessageConverter();
+//        需要设计一个对象转换器 对象转换器将 -> Java对象序列化为Json数据
+        converter.setObjectMapper(new JacksonObjectMapper());
+//        添加转换器 放到第一位
+        converters.add(0, converter);
+
     }
 }
