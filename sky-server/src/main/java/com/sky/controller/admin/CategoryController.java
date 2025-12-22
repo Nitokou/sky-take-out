@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@RestController
+@RestController("adminCategoryController")
 //@RestController，SpringBoot 自动启用了 JSON 序列化
 @RequestMapping("/admin/category")
 @Slf4j

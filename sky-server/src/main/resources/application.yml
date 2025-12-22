@@ -18,6 +18,7 @@ spring:
     password: ${sky.redis.password}
     database: ${sky.redis.database}
 
+
 mybatis:
   #mapper配置文件 扫描xml映射文件
   mapper-locations: classpath:mapper/*.xml
@@ -43,8 +44,18 @@ sky:
     # 设置前端传递过来的令牌名称
     admin-token-name: token
 
+    user-secret-key: itheima
+    user-ttl: 7200000000
+    user-token-name: Authentication
+
   file:
     upload:
       path: E:\\BaiduNetdiskDownload\\苍穹外卖\\资料\\资料\\day01\\后端初始工程\\file
+
+  wechat:
+    appid: ${sky.wechat.appid}
+    secret: ${sky.wechat.secret}
+
+
 
 

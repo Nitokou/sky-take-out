@@ -6,6 +6,7 @@ import com.sky.dto.SetmealDTO;
 import com.sky.dto.SetmealPageQueryDTO;
 import com.sky.entity.Setmeal;
 import com.sky.enumeration.OperationType;
+import com.sky.vo.DishItemVO;
 import com.sky.vo.SetmealVO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
@@ -37,4 +38,10 @@ public interface SetmealMapper {
 
     @AutoFill(OperationType.INSERT)
     void InsertBatch(Setmeal setmeal);
+
+    @Select("select * from setmeal where category_id = #{categoryId} and status = #{status}")
+    List<Setmeal> getByCategoryId(Setmeal setmeal);
+
+    @Select("select * from setmeal_dish LEFT JOIN dish ON dish_id = dish.id where setmeal_dish.setmeal_id = #{setmealId}")
+    List<DishItemVO> getDishItemBySetmealId(Long setmealId);
 }

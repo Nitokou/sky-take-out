@@ -12,6 +12,7 @@ import com.sky.mapper.SetmealDishMapper;
 import com.sky.mapper.SetmealMapper;
 import com.sky.result.PageResult;
 import com.sky.service.SetmealService;
+import com.sky.vo.DishItemVO;
 import com.sky.vo.DishVO;
 import com.sky.vo.SetmealVO;
 import lombok.extern.slf4j.Slf4j;
@@ -124,5 +125,17 @@ public class SetmealServiceImpl implements SetmealService {
             setmealDishMapper.InsertBatch(setmealDishes);
         }
 
+    }
+
+    @Override
+    public List<Setmeal> getByCategoryId(Setmeal setmeal) {
+        return setmealMapper.getByCategoryId(setmeal);
+    }
+
+    @Override
+    public List<DishItemVO> queryDishsBySetmealId(Long setmealId) {
+
+
+        return setmealMapper.getDishItemBySetmealId(setmealId);
     }
 }

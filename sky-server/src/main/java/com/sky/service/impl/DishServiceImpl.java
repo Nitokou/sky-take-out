@@ -21,7 +21,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -150,6 +154,63 @@ public class DishServiceImpl implements DishService {
         List<Dish> dishs = dishMapper.getByCategoryId(categoryId);
 
         return dishs;
+    }
+
+
+    public List<DishVO> getDishesByCategoryId(Long categoryId) {
+        List<Dish> dishes = dishMapper.getByCategoryId(categoryId);
+        if (dishes == null || dishes.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // 1. 提取 dishId
+        List<Long> dishIds = dishes.stream()
+                .map(Dish::getId)
+                .collect(Collectors.toList());
+
+        // 2. 一次性查所有口味
+        List<DishFlavor> flavors = dishFlavorMapper.getByDishIds(dishIds);
+
+        // 3. 按 dishId 分组
+        Map<Long, List<DishFlavor>> flavorMap = flavors.stream()
+                .collect(Collectors.groupingBy(DishFlavor::getDishId));
+
+        // 4. 组装 VO
+        return dishes.stream().map(dish -> {
+            DishVO vo = new DishVO();
+            BeanUtils.copyProperties(dish, vo);
+            vo.setFlavors(flavorMap.getOrDefault(dish.getId(), Collections.emptyList()));
+            return vo;
+        }).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<DishVO> listWithFlavor(Dish query) {
+        List<Dish> dishes = dishMapper.getByCategoryIdWithStatus(query);
+        if (dishes == null || dishes.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // 1. 提取 dishId
+        List<Long> dishIds = dishes.stream()
+                .map(Dish::getId)
+                .collect(Collectors.toList());
+
+        // 2. 一次性查所有口味
+        List<DishFlavor> flavors = dishFlavorMapper.getByDishIds(dishIds);
+
+        // 3. 按 dishId 分组
+        Map<Long, List<DishFlavor>> flavorMap = flavors.stream()
+                .collect(Collectors.groupingBy(DishFlavor::getDishId));
+
+        // 4. 组装 VO
+        return dishes.stream().map(dish -> {
+            DishVO vo = new DishVO();
+            BeanUtils.copyProperties(dish, vo);
+            vo.setFlavors(flavorMap.getOrDefault(dish.getId(), Collections.emptyList()));
+            return vo;
+        }).collect(Collectors.toList());
+
     }
 
 

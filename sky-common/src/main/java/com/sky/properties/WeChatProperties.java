@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @ConfigurationProperties(prefix = "sky.wechat")
+//@ConfigurationProperties 是 Spring Boot 用来把一整组配置项映射成 Java 对象的注解，比 @Value 更优雅、更安全。
 @Data
 public class WeChatProperties {
 

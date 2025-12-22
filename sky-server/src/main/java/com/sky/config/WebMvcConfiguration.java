@@ -1,6 +1,7 @@
 package com.sky.config;
 
 import com.sky.interceptor.JwtTokenAdminInterceptor;
+import com.sky.interceptor.JwtTokenUserInterceptor;
 import com.sky.json.JacksonObjectMapper;
 import com.sky.properties.UploadProperties;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +34,9 @@ public class WebMvcConfiguration extends WebMvcConfigurationSupport {
     private JwtTokenAdminInterceptor jwtTokenAdminInterceptor;
 
     @Autowired
+    private JwtTokenUserInterceptor jwtTokenUserInterceptor;
+
+    @Autowired
     private UploadProperties uploadProperties;
 
     /**
@@ -42,10 +46,17 @@ public class WebMvcConfiguration extends WebMvcConfigurationSupport {
      */
     protected void addInterceptors(InterceptorRegistry registry) {
         log.info("开始注册自定义拦截器...");
+
 //        登录接口是需要放行的
         registry.addInterceptor(jwtTokenAdminInterceptor)
                 .addPathPatterns("/admin/**")
                 .excludePathPatterns("/admin/employee/login");
+
+        registry.addInterceptor(jwtTokenUserInterceptor)
+                .addPathPatterns("/user/**")
+                .excludePathPatterns("/user/user/login")
+                .excludePathPatterns("/user/shop/status");
+
     }
 
     /**
@@ -100,7 +111,6 @@ public class WebMvcConfiguration extends WebMvcConfigurationSupport {
 //        匹配所有以 /upload/ 开头的请求
         registry.addResourceHandler("/upload/**")
                 .addResourceLocations("file:" + uploadProperties.getPath() + "/");
-
 
     }
 
