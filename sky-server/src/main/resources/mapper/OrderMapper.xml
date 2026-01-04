@@ -22,10 +22,10 @@
         update orders
         <set>
             <if test="status">status = #{status},</if>
-
+            <if test="rejectionReason">rejection_reason = #{rejectionReason},</if>
         </set>
         
-        where id = #{id} and user_id = #{userId}
+        where id = #{id}
     </update>
     <select id="getPageResult" resultType="com.sky.dto.OrdersDTO">
         select * from orders
@@ -74,5 +74,13 @@
             </if>
         </where>
         order by order_time desc
+    </select>
+    <select id="statistics" resultType="com.sky.vo.OrderStatisticsVO">
+        SELECT
+            COALESCE(SUM(CASE WHEN status = 2 THEN 1 END), 0) AS toBeConfirmed,
+            COALESCE(SUM(CASE WHEN status = 3 THEN 1 END), 0) AS confirmed,
+            COALESCE(SUM(CASE WHEN status = 4 THEN 1 END), 0) AS deliveryInProgress
+        FROM orders
+
     </select>
 </mapper>

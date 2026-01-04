@@ -5,9 +5,7 @@ import com.github.pagehelper.PageHelper;
 import com.sky.constant.MessageConstant;
 import com.sky.context.BaseContext;
 import com.sky.controller.user.ShoppingCartController;
-import com.sky.dto.OrdersDTO;
-import com.sky.dto.OrdersPageQueryDTO;
-import com.sky.dto.OrdersSubmitDTO;
+import com.sky.dto.*;
 import com.sky.entity.*;
 import com.sky.exception.AddressBookBusinessException;
 import com.sky.exception.OrderBusinessException;
@@ -18,19 +16,26 @@ import com.sky.mapper.OrderMapper;
 import com.sky.mapper.ShoppingCartMapper;
 import com.sky.result.PageResult;
 import com.sky.service.OrderService;
+import com.sky.utils.SearchHttpSN;
+import com.sky.vo.OrderStatisticsVO;
 import com.sky.vo.OrderSubmitVO;
 import com.sky.vo.OrderVO;
+import io.swagger.models.auth.In;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 public class OrderServiceImpl implements OrderService {
 
     @Autowired
@@ -44,6 +49,44 @@ public class OrderServiceImpl implements OrderService {
     @Autowired
     AddressBookMapper addressBookMapper;
 
+    @Autowired
+    SearchHttpSN searchHttpSN;
+
+    @Value("${sky.shop.address}")
+    String shopAddress;
+
+    private static final double EARTH_RADIUS = 6371.0; // km
+
+    @SuppressWarnings("unchecked")
+    private static double[] extractLatLng(Map<String, Object> map) {
+        Map<String, Object> result = (Map<String, Object>) map.get("result");
+        Map<String, Object> location = (Map<String, Object>) result.get("location");
+
+        double lng = ((Number) location.get("lng")).doubleValue();
+        double lat = ((Number) location.get("lat")).doubleValue();
+
+        return new double[]{lat, lng};
+    }
+
+
+
+    public static double distanceKm(
+            double lat1, double lng1,
+            double lat2, double lng2) {
+
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLng = Math.toRadians(lng2 - lng1);
+
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(Math.toRadians(lat1))
+                * Math.cos(Math.toRadians(lat2))
+                * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return EARTH_RADIUS * c;
+    }
+
+
     @Override
     @Transactional
     public OrderSubmitVO submitOrder(OrdersSubmitDTO ordersSubmitDTO) {
@@ -53,6 +96,37 @@ public class OrderServiceImpl implements OrderService {
         if (addressBook == null){
             throw new AddressBookBusinessException(MessageConstant.ADDRESS_BOOK_IS_NULL);
         }
+
+//        判断 地址是否超出距离
+//        查询地址
+
+        try {
+            Map<String, Object> locationA = searchHttpSN.getLocation(
+                    addressBook.getProvinceName()
+                            + addressBook.getCityName()
+                            + addressBook.getDistrictName()
+                            + addressBook.getDetail()
+            );
+
+            Map<String, Object> locationB = searchHttpSN.getLocation(shopAddress);
+
+            double[] p1 = extractLatLng(locationA);
+            double[] p2 = extractLatLng(locationB);
+
+            double distance = distanceKm(p1[0], p1[1], p2[0], p2[1]);
+
+            if (distance > 5.0) {
+                throw new OrderBusinessException("超出配送距离");
+            }
+
+        } catch (OrderBusinessException e) {
+            throw e; // ✅ 业务异常原样抛出
+
+        } catch (Exception e) {
+            log.error("校验配送距离失败", e);
+            throw new RuntimeException(MessageConstant.UNKNOWN_ERROR, e);
+        }
+
 
         ShoppingCart shoppingCart = new ShoppingCart();
         Long currentId = BaseContext.getCurrentId();
@@ -214,5 +288,139 @@ public class OrderServiceImpl implements OrderService {
 
         shoppingCartMapper.insertBatch(collect);
 
+    }
+
+    @Override
+    public PageResult conditionSearch(OrdersPageQueryDTO ordersPageQueryDTO) {
+        PageHelper.startPage(ordersPageQueryDTO.getPage(), ordersPageQueryDTO.getPageSize());
+
+
+        Page<Orders> page = orderMapper.pageQuery(ordersPageQueryDTO);
+
+        // 这里的OrderVo是继承至Order 因此 拥有Order所有的属性
+        List<OrderVO> orderVOList = getOrderVOList(page);
+
+        return new PageResult(page.getTotal(), orderVOList);
+
+    }
+
+    @Override
+    public OrderStatisticsVO getStatistics() {
+
+//        统计数量 2待接单 3已接单 4派送中
+//        Map<Integer, Integer> statistics =
+        OrderStatisticsVO orderStatisticsVO = orderMapper.statistics();
+//        待派送 = 已接单
+//        orderStatisticsVO.setToBeConfirmed(statistics.getOrDefault(Orders.TO_BE_CONFIRMED, 0)); //2
+//        orderStatisticsVO.setConfirmed(statistics.getOrDefault(Orders.CONFIRMED, 0)); //3
+//        orderStatisticsVO.setDeliveryInProgress(statistics.getOrDefault(Orders.DELIVERY_IN_PROGRESS, 0)); //
+
+
+        return orderStatisticsVO;
+    }
+
+    @Override
+    @Transactional
+    public void rejection(OrdersRejectionDTO rejectionDTO) {
+//        直接将原因和 id 写入
+        Orders orders = new Orders();
+        orders.setRejectionReason(rejectionDTO.getRejectionReason());
+        orders.setId(rejectionDTO.getId());
+
+//        同时需要将已接单取消
+        orders.setStatus(Orders.CANCELLED);
+
+        orderMapper.update(orders);
+    }
+
+    @Override
+    public void confirm(Orders orders) {
+//        Orders orders = new Orders();
+//        orders.setRejectionReason(rejectionDTO.getRejectionReason());
+//        orders.setId(id);
+
+        orders.setStatus(Orders.CONFIRMED);
+
+        orderMapper.update(orders);
+    }
+
+    @Override
+    public void cancel(OrdersCancelDTO cancelDTO) {
+//        拒单 就需要把订单状态改为 6 并把取消原因写入
+
+        Orders orders = new Orders();
+//        Orders orders = new Orders();
+        orders.setId(cancelDTO.getId());
+        orders.setCancelReason(cancelDTO.getCancelReason());
+//        设置状态
+        orders.setStatus(Orders.CANCELLED);
+
+        orderMapper.update(orders);
+
+
+    }
+
+    @Override
+    public void complete(Long id) {
+        Orders orders = new Orders();
+
+        orders.setId(id);
+
+        orders.setStatus(Orders.COMPLETED);
+
+        orderMapper.update(orders);
+    }
+
+    @Override
+    public void delivery(Long id) {
+        Orders orders = new Orders();
+
+        orders.setId(id);
+
+        orders.setStatus(Orders.DELIVERY_IN_PROGRESS);
+
+        orderMapper.update(orders);
+    }
+
+    private List<OrderVO> getOrderVOList(Page<Orders> page) {
+        // 需要返回订单菜品信息，自定义OrderVO响应结果
+        List<OrderVO> orderVOList = new ArrayList<>();
+
+        List<Orders> ordersList = page.getResult();
+
+        if (!CollectionUtils.isEmpty(ordersList)) {
+            for (Orders orders : ordersList) {
+                // 将共同字段复制到OrderVO
+                OrderVO orderVO = new OrderVO();
+                BeanUtils.copyProperties(orders, orderVO);
+
+                String orderDishes = getOrderDishesStr(orders);
+
+                // 将订单菜品信息封装到orderVO中，并添加到orderVOList 这一部分可以优化
+                orderVO.setOrderDishes(orderDishes);
+                orderVOList.add(orderVO);
+            }
+        }
+        return orderVOList;
+    }
+
+    /**
+     * 根据订单id获取菜品信息字符串
+     *
+     * @param orders
+     * @return
+     */
+    private String getOrderDishesStr(Orders orders) {
+        // 查询订单菜品详情信息（订单中的菜品和数量）
+        List<OrderDetail> orderDetailList = orderDetailMapper.getByOrderId(orders.getId());
+
+        // 将每一条订单菜品信息拼接为字符串（格式：宫保鸡丁*3；）
+        List<String> orderDishList = orderDetailList.stream().map(x -> {
+            String orderDish = x.getName() + "*" + x.getNumber() + ";";
+            return orderDish;
+        }).collect(Collectors.toList());
+
+        // 将该订单对应的所有菜品信息拼接在一起
+        return String.join("", orderDishList);
     }
 }
