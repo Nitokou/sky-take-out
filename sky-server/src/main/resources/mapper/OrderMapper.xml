@@ -23,6 +23,7 @@
         <set>
             <if test="status">status = #{status},</if>
             <if test="rejectionReason">rejection_reason = #{rejectionReason},</if>
+            <if test="cancelReason"> cancel_reason= #{cancelReason},</if>
         </set>
         
         where id = #{id}

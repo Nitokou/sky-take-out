@@ -24,7 +24,7 @@ public interface AddressBookMapper {
 
     void update(AddressBook id);
 
-    @Update("update address_book set is_default = 0 where user_id = #{id}")
+    @Update("update address_book set is_default = 0 where user_id = #{userId}")
     void cancelDefault(AddressBook address);
 
     @Select("select * from address_book where id =#{id} and user_id = #{userId}")

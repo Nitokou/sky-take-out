@@ -9,6 +9,7 @@ import org.apache.ibatis.annotations.MapKey;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -29,4 +30,12 @@ public interface OrderMapper {
 
 //    @MapKey("delivery_status")
     OrderStatisticsVO statistics();
+
+//    根据订单状态查询时间
+    @Select("select * from orders where status = #{status} and order_time < #{localDateTime}")
+    List<Orders> getByStatusAndOrderTimeLT(Integer status, LocalDateTime localDateTime);
+
+    @Select("select * from orders where number = #{orderNumber}")
+    Orders getByNumber(String orderNumber);
+
 }

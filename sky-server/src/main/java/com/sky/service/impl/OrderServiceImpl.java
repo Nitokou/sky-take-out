@@ -1,5 +1,7 @@
 package com.sky.service.impl;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.sky.constant.MessageConstant;
@@ -10,18 +12,19 @@ import com.sky.entity.*;
 import com.sky.exception.AddressBookBusinessException;
 import com.sky.exception.OrderBusinessException;
 import com.sky.exception.ShoppingCartBusinessException;
-import com.sky.mapper.AddressBookMapper;
-import com.sky.mapper.OrderDetailMapper;
-import com.sky.mapper.OrderMapper;
-import com.sky.mapper.ShoppingCartMapper;
+import com.sky.mapper.*;
 import com.sky.result.PageResult;
 import com.sky.service.OrderService;
 import com.sky.utils.SearchHttpSN;
+import com.sky.utils.WeChatPayUtil;
+import com.sky.vo.OrderPaymentVO;
 import com.sky.vo.OrderStatisticsVO;
 import com.sky.vo.OrderSubmitVO;
 import com.sky.vo.OrderVO;
+import com.sky.websocket.WebSocketServer;
 import io.swagger.models.auth.In;
 import lombok.extern.slf4j.Slf4j;
+import org.codehaus.jettison.json.JSONException;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -30,13 +33,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
 @Slf4j
-public class OrderServiceImpl implements OrderService {
+public class
+OrderServiceImpl implements OrderService {
 
     @Autowired
     OrderMapper orderMapper;
@@ -54,6 +59,16 @@ public class OrderServiceImpl implements OrderService {
 
     @Value("${sky.shop.address}")
     String shopAddress;
+
+    @Autowired
+    UserMapper userMapper;
+
+    @Autowired
+    WebSocketServer webSocketServer;
+
+    @Autowired
+    private WeChatPayUtil weChatPayUtil;
+
 
     private static final double EARTH_RADIUS = 6371.0; // km
 
@@ -380,6 +395,57 @@ public class OrderServiceImpl implements OrderService {
         orders.setStatus(Orders.DELIVERY_IN_PROGRESS);
 
         orderMapper.update(orders);
+    }
+
+    @Override
+    public OrderPaymentVO payment(OrdersPaymentDTO ordersPaymentDTO) throws Exception {
+        // 当前登录用户id
+        Long userId = BaseContext.getCurrentId();
+        User user = userMapper.getById(userId);
+
+        //调用微信支付接口，生成预支付交易单
+//        JSONObject jsonObject = weChatPayUtil.pay(
+//                ordersPaymentDTO.getOrderNumber(), //商户订单号
+//                new BigDecimal(0.01), //支付金额，单位 元
+//                "苍穹外卖订单", //商品描述
+//                user.getOpenid() //微信用户的openid
+//        );
+        JSONObject jsonObject = new JSONObject();
+
+        if (jsonObject.getString("code") != null && jsonObject.getString("code").equals("ORDERPAID")) {
+            throw new OrderBusinessException("该订单已支付");
+        }
+
+        OrderPaymentVO vo = jsonObject.toJavaObject(OrderPaymentVO.class);
+        vo.setPackageStr(jsonObject.getString("package"));
+
+        return vo;
+//        return null;
+    }
+
+    @Override
+    public void paySuccess(String outTradeNo) {
+        // 根据订单号查询订单
+        Orders ordersDB = orderMapper.getByNumber(outTradeNo);
+
+        // 根据订单id更新订单的状态、支付方式、支付状态、结账时间
+        Orders orders = Orders.builder()
+                .id(ordersDB.getId())
+                .status(Orders.TO_BE_CONFIRMED)
+                .payStatus(Orders.PAID)
+                .checkoutTime(LocalDateTime.now())
+                .build();
+        orderMapper.update(orders);
+
+//        通过websocket 向客户端推送数据
+        Map map = new HashMap();
+        map.put("type", 1);
+        map.put("orderId", ordersDB.getId());
+        map.put("content", "订单号：" + outTradeNo);
+
+        String json = JSON.toJSONString(map);
+        webSocketServer.sendToAllClient(json);
+
     }
 
     private List<OrderVO> getOrderVOList(Page<Orders> page) {
