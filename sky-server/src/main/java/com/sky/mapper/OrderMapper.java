@@ -1,6 +1,7 @@
 package com.sky.mapper;
 
 import com.github.pagehelper.Page;
+import com.sky.dto.GoodsSalesDTO;
 import com.sky.dto.OrdersDTO;
 import com.sky.dto.OrdersPageQueryDTO;
 import com.sky.entity.Orders;
@@ -38,4 +39,12 @@ public interface OrderMapper {
     @Select("select * from orders where number = #{orderNumber}")
     Orders getByNumber(String orderNumber);
 
+
+    Double sumByMap(Map map);
+
+    Long sumUserByMap(Map map);
+
+    Integer sumOrderByMap(Map map);
+
+    List<GoodsSalesDTO> getSaleTop10(Map map);
 }

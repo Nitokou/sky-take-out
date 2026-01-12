@@ -29,6 +29,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
@@ -36,6 +37,7 @@ import org.springframework.util.CollectionUtils;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Service
@@ -68,6 +70,9 @@ OrderServiceImpl implements OrderService {
 
     @Autowired
     private WeChatPayUtil weChatPayUtil;
+
+    @Autowired
+    private RedisTemplate redisTemplate;
 
 
     private static final double EARTH_RADIUS = 6371.0; // km
@@ -445,6 +450,37 @@ OrderServiceImpl implements OrderService {
 
         String json = JSON.toJSONString(map);
         webSocketServer.sendToAllClient(json);
+
+    }
+
+    @Override
+    public void reminder(Long id) {
+
+        String key = "order:reminder:" + id;
+
+        // 1. 尝试设置 key（不存在才成功）
+        Boolean success = redisTemplate.opsForValue()
+                .setIfAbsent(key, "1", 60, TimeUnit.SECONDS);
+
+        // 2. 如果 1 分钟内重复调用
+        if (Boolean.FALSE.equals(success)) {
+            throw new OrderBusinessException("催单过于频繁，请1分钟后再试");
+        }
+
+//        客户催单
+        Orders ordersDB = orderMapper.getById(id);
+
+        if (ordersDB == null){
+            throw new OrderBusinessException(MessageConstant.ORDER_STATUS_ERROR);
+        }
+
+        Map map = new HashMap();
+
+        map.put("type", 2);
+        map.put("orderId", id);
+        map.put("content", "订单号：" + ordersDB.getNumber());
+//        推送消息
+        webSocketServer.sendToAllClient(JSON.toJSONString(map));
 
     }
 
