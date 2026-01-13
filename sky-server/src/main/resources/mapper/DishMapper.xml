@@ -56,4 +56,7 @@
         order by dish.create_time desc
         
     </select>
+    <select id="sumDishStatus" resultType="com.sky.dto.StatusDTO">
+        select status, COUNT(id) as cnt FROM dish GROUP BY status
+    </select>
 </mapper>

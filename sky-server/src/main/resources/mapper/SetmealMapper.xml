@@ -48,5 +48,8 @@
         </where>
         order by setmeal.create_time desc
     </select>
+    <select id="sumSetmealStatus" resultType="com.sky.dto.StatusDTO">
+        select status, COUNT(id) as cnt FROM setmeal GROUP BY status
+    </select>
 
 </mapper>

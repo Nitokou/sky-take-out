@@ -140,4 +140,17 @@
         GROUP BY order_detail.name
         ORDER BY number DESC LIMIT 10
     </select>
+    <select id="sumStatusByMap" resultType="com.sky.dto.StatusDTO">
+        select status, COUNT(id) as cnt
+        FROM orders
+        <where>
+            <if test="begin!=null">
+                and order_time &gt; #{begin}
+            </if>
+            <if test="end!=null">
+                and order_time &lt; #{end}
+            </if>
+        </where>
+        GROUP BY status
+    </select>
 </mapper>
