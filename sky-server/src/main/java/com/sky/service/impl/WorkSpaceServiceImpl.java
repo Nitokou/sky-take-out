@@ -31,7 +31,7 @@ public class WorkSpaceServiceImpl implements WorkSpaceService {
     private SetmealMapper setmealMapper;
 
     @Override
-    public BusinessDataVO getBusinessData() {
+    public BusinessDataVO getBusinessData(LocalDateTime dayStart, LocalDateTime dayEnd) {
 //        获取今天系统时间
 //        数据库查询今日
 
@@ -45,12 +45,6 @@ public class WorkSpaceServiceImpl implements WorkSpaceService {
 //
 //    private Integer newUsers;//新增用户数
 
-//        得到一天的开始和结束
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime dayEnd =
-                now.toLocalDate().atTime(LocalTime.MAX);
-        LocalDateTime dayStart =
-                now.toLocalDate().atTime(LocalTime.MIN);
 
 //        获取新用户数
         HashMap map = new HashMap();
@@ -86,6 +80,12 @@ public class WorkSpaceServiceImpl implements WorkSpaceService {
 
 
         return build;
+
+
+
+
+
+
     }
 
     @Override

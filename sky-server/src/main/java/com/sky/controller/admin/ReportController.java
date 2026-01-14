@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import javax.servlet.http.HttpServletResponse;
 import java.time.LocalDate;
 
 @Slf4j
@@ -66,6 +67,19 @@ public class ReportController {
         log.info("订单统计: {} - {}", begin, end);
         return Result.success(reportService.getOrderStatistics(begin, end));
     }
+
+
+    @GetMapping("/export")
+    @ApiOperation("excel报表")
+//    这个 response 不是你自己“接收到”的数据，而是 Spring MVC 在处理 HTTP 请求时自动帮你创建并注入的 HttpServletResponse 对象。
+//它代表的是：服务器 → 客户端（浏览器 / 前端）要返回的响应。
+    public Result<OrderReportVO> export(HttpServletResponse response){
+        log.info("excel报表");
+        reportService.exportBusinessData(response);
+        return Result.success();
+    }
+
+
 
 
 }
